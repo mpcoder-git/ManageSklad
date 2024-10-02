@@ -6,9 +6,9 @@ from sqlalchemy import create_engine
 from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Text, Numeric, BigInteger, Float
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship, joinedload
 from pydantic import BaseModel
-from config import settings
+#from config import settings
 from typing import List
-import uvicorn
+#import uvicorn
 
 
 
