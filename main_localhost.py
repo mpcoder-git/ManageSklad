@@ -1,5 +1,4 @@
-#этот файл настроен для запуска в docker контейнере
-#необходимо установить на локальном компьютере базу postgreesql и восстановить дамп из dump.sql
+#этот файл настроен для тестирования сервиса на локальной машине localhost  установленой базой postgreesql
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import create_engine
@@ -12,9 +11,9 @@ import uvicorn
 
 
 
-#connect_str = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOSTNAME}:{settings.DATABASE_PORT}/{settings.POSTGRES_DB}"
-engine = create_engine('postgresql+psycopg2://admin:adminp@host.docker.internal:5432/managesklad')
-#engine = create_engine(connect_str, echo=True)
+connect_str = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOSTNAME}:{settings.DATABASE_PORT}/{settings.POSTGRES_DB}"
+#engine = create_engine('postgresql+psycopg2://admin:adminp@localhost:5432/managesklad')
+engine = create_engine(connect_str, echo=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 session = SessionLocal()
 
@@ -223,3 +222,8 @@ def update_orderstatus(order_id: int, order: OrderUpdate):
         session.commit()
         session.close()
         return db_order
+
+
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", port=8000, host="localhost", log_level="info")

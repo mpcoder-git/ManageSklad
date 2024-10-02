@@ -1,0 +1,12 @@
+# docker-compose.yml
+
+version: '3'
+
+services:
+  restapi_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn main:app --host 0.0.0.0
+    ports:
+      - 8000:8000
