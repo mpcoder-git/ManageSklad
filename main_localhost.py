@@ -72,13 +72,20 @@ class OrderItemP(BaseModel):
     quantity: float
 
 
-class OrderP(BaseModel):
+class OrderPost(BaseModel):
     datecreate: datetime
     status_id: int
     order_items: list[OrderItemP]
 
+
+class OrderOut(BaseModel):
+    id: int
+    datecreate: datetime
+    status_id: int
+
 class OrderUpdate(BaseModel):
     status_id: int
+
 
 
 app = FastAPI()
@@ -86,32 +93,46 @@ app = FastAPI()
 
 
 @app.get("/")
-async def root():
+def root():
     return {"app": "work!!!"}
 
 
 #эндпоинты для товаров
-
-@app.get("/products",description="Get list products")
+#,description="Get list products"
+@app.get("/products")
 def get_all_products():
+    '''
+    Получение списка продуктов
+    * :return: Возврат списка продуктов вместе со статусом выполнения и количеством продуктов
+    '''
     db_products = session.query(Product).all()
     if not db_products:
         raise HTTPException(status_code=404, detail="Product not found")
     return {'status': 'success', 'results': len(db_products), 'notes': db_products}
 
 
-
-@app.get("/products/{product_id}",description="Get one product")
+#,description="Get one product"
+@app.get("/products/{product_id}")
 def get_product(product_id: int):
+    '''
+    Получение информации о конкретном продукте
+    * :param product_id: Уникальные номер продукта
+    * :return: Возврат информации о продукте
+    '''
     db_product = session.query(Product).filter(Product.id == product_id).first()
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
     return db_product
 
 
-
-@app.post("/products", status_code=201, description="Insert new product")
+#, description="Insert new product"
+@app.post("/products", status_code=201)
 def create_product(product: ProductP):
+    '''
+    Добавление нового продукта
+    * :param product: Объект, содержащий информацию для добавления
+    * :return: Возврат добавленного продукта
+    '''
     db_product = Product(**product.dict())
     session.add(db_product)
     session.commit()
@@ -119,9 +140,15 @@ def create_product(product: ProductP):
     session.close()
     return db_product
 
-
-@app.put("/products/{product_id}", description="Update product")
+#, description="Update product"
+@app.put("/products/{product_id}")
 def update_product(product_id: int, product: ProductP):
+    '''
+    Обновление информации о продукте
+    * :param product_id: Уникальный номер продукта
+    * :param product: Объект, содержащий информацию для обновления
+    * :return: Возврат информации о обновленном продукте
+    '''
     db_product = session.query(Product).filter(Product.id == product_id).first()
     if not db_product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -133,9 +160,14 @@ def update_product(product_id: int, product: ProductP):
     return db_product
 
 
-
-@app.delete("/products/{product_id}",description="Delete product", status_code=204)
+#,description="Delete product"
+@app.delete("/products/{product_id}", status_code=204)
 def delete_product(product_id: int):
+    '''
+    Удаление продукта
+    * :param product_id: Уникальный номер продукта
+
+    '''
     product = session.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -146,18 +178,27 @@ def delete_product(product_id: int):
 
 
 #эндпоинты для заказов
-
-@app.get("/orders",description="Get list orders")
+#,description="Get list orders"
+@app.get("/orders")
 def get_all_orders():
+    '''
+    Получение списка заказов
+    * :return: Возврат списка заказав вместе с статусом выполнения и количеством заказов
+    '''
     db_orders = session.query(Order).all()
     if not db_orders:
         raise HTTPException(status_code=404, detail="Orders not found")
     return {'status': 'success', 'results': len(db_orders), 'notes': db_orders}
 
 
-
-@app.get("/orders/{order_id}",description="Get one order")
+#,description="Get one order"
+@app.get("/orders/{order_id}")
 def get_order(order_id: int):
+    '''
+    Получение данных заказа с строками
+    * :param order_id: Уникальный номер заказа
+    * :return:
+    '''
     #db_order = session.query(Order).filter(Order.id == order_id).first()
     db_order = session.query(Order).options(joinedload(Order.order_items)).filter(Order.id == order_id).first()
     if not db_order:
@@ -165,9 +206,14 @@ def get_order(order_id: int):
     return db_order
 
 
-
-@app.post("/orders",  description="Insert new order")
-def create_order(order: OrderP):
+#,  description="Insert new order"
+@app.post("/orders", response_model=OrderPost)
+def create_order(order: OrderPost):
+    '''
+    Создание нового заказа
+    * :param order: Данные нового заказа
+    * :return: Возврат заказа вместе с строками
+    '''
     #проверим данные на корректность перед вставкой
     errors_list = []
 
@@ -192,21 +238,25 @@ def create_order(order: OrderP):
         session.add(new_order)
         session.commit()
         session.refresh(new_order)
-
         for item in order.order_items:
             new_order_item = OrderItem(order_id=new_order.id, product_id=item.product_id, quantity=item.quantity)
             session.add(new_order_item)
             db_product = session.query(Product).filter(Product.id == item.product_id).first()
             db_product.stock = db_product.stock - item.quantity
-
         session.commit()
         session.close()
-        return new_order
+        return order
 
 
-
-@app.put("/orders/{order_id}", description="Update order status")
-def update_orderstatus(order_id: int, order: OrderUpdate):
+#, description="Update order status"
+@app.put("/orders/{order_id}", response_model=OrderOut)
+def update_orderstatus(order_id: int, order: OrderUpdate) : #-> OrderBase
+    '''
+    Обновление статуса заказа
+    * :param order_id: Уникальный номер заказа
+    * :param order: Поля заказа
+    * :return: Возврат обновленного заказа
+    '''
     errors_list = []
     db_status = session.query(Status).filter(Status.id == order.status_id).first()
     if not db_status:
@@ -220,10 +270,11 @@ def update_orderstatus(order_id: int, order: OrderUpdate):
         # обновляем статус
         db_order.status_id = order.status_id
         session.commit()
+        db_order = session.query(Order).filter(Order.id == order_id).first()
         session.close()
         return db_order
 
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", port=8000, host="localhost", log_level="info")
+    uvicorn.run("main:app", port=8000, host="localhost", log_level="info", reload=True)
